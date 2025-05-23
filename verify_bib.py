@@ -1,20 +1,9 @@
 #!/usr/bin/env python3
 """verify_bib.py – Quick validity checker for BibTeX references.
 
-
-For each entry in the given .bib file it tries to find a close‑enough match
+For each entry in the given .bib file it tries to find a close-enough match
 in Crossref (journal & conference papers) and, if not found there, in arXiv.
 It reports a simple OK / CHECK flag plus the similarity score.
-
-Usage:
-    python verify_bib.py references.bib
-    python verify_bib.py references.bib --threshold 0.85
-
-Dependencies (install via pip):
-    bibtexparser
-    requests
-    feedparser
-    tabulate
 """
 
 import argparse
@@ -22,16 +11,15 @@ import difflib
 import re
 import sys
 from pathlib import Path
+import urllib.parse
 
 import requests
 import bibtexparser
 from tabulate import tabulate
 
-# -- helpers -----------------------------------------------------------------
 
 def normalize(text: str) -> str:
     text = text.lower()
-    # strip LaTeX / TeX braces and commands
     text = re.sub(r"[{}]", "", text)
     text = re.sub(r"\\[a-zA-Z]+", "", text)
     text = re.sub(r"[^a-z0-9]+", " ", text)
@@ -42,11 +30,7 @@ def similarity(a: str, b: str) -> float:
     return difflib.SequenceMatcher(None, normalize(a), normalize(b)).ratio()
 
 
-# --------------------------- CROSSREF ---------------------------------------
-
-
 def query_crossref(title: str):
-    """Return best‑matching Crossref record (dict) and similarity score."""
     try:
         resp = requests.get(
             "https://api.crossref.org/works",
@@ -54,7 +38,7 @@ def query_crossref(title: str):
             timeout=10,
         )
         resp.raise_for_status()
-    except Exception as e:
+    except Exception:
         return None, 0.0
 
     items = resp.json().get("message", {}).get("items", [])
@@ -67,15 +51,17 @@ def query_crossref(title: str):
     return best_item, best_score
 
 
-# ----------------------------- ARXIV ----------------------------------------
-
 def query_arxiv(title: str):
-    """Return best‑matching arXiv entry (feedparser entry) and similarity score."""
     import feedparser
 
-    search = f'ti:\"{title}\"'
-    url = f"http://export.arxiv.org/api/query?search_query={search}&max_results=5"
-    feed = feedparser.parse(url)
+    try:
+        search = f'ti:"{title}"'
+        query = urllib.parse.quote(search)
+        url = f"http://export.arxiv.org/api/query?search_query={query}&max_results=5"
+        feed = feedparser.parse(url)
+    except Exception:
+        return None, 0.0
+
     best_ent, best_score = None, 0.0
     for ent in feed.entries:
         score = similarity(title, ent.title)
@@ -84,19 +70,10 @@ def query_arxiv(title: str):
     return best_ent, best_score
 
 
-# ---------------------------------------------------------------------------
-
 def main():
-    p = argparse.ArgumentParser(
-        description="Verify BibTeX entries via Crossref / arXiv look‑ups."
-    )
+    p = argparse.ArgumentParser(description="Verify BibTeX entries via Crossref / arXiv look-ups.")
     p.add_argument("bibfile", type=Path, help="BibTeX file to check")
-    p.add_argument(
-        "--threshold",
-        type=float,
-        default=0.8,
-        help="Minimum similarity [0–1] to mark entry as OK (default: 0.80)",
-    )
+    p.add_argument("--threshold", type=float, default=0.8, help="Minimum similarity [0–1] to mark entry as OK (default: 0.80)")
     args = p.parse_args()
 
     if not args.bibfile.exists():
@@ -107,9 +84,9 @@ def main():
 
     rows = []
     for entry in bib_db.entries:
-        key = entry.get("ID", "<no‑key>")
+        key = entry.get("ID", "<no-key>")
         raw_title = entry.get("title", "").strip()
-        title = re.sub(r"[\\{\\}]", "", raw_title)
+        title = re.sub(r"[{}]", "", raw_title)
 
         status, source, score = "CHECK", "", 0.0
 
@@ -121,24 +98,20 @@ def main():
             if ar_score >= args.threshold:
                 status, source, score = "OK", "arXiv", ar_score
 
-        rows.append(
-            [
-                key,
-                status,
-                source,
-                f"{score:.2f}",
-                title if len(title) <= 60 else title[:57] + "…",
-            ]
-        )
+        rows.append([
+            key,
+            status,
+            source,
+            f"{score:.2f}",
+            title if len(title) <= 60 else title[:57] + "…",
+        ])
 
-    print(
-        tabulate(
-            rows,
-            headers=["BibKey", "Status", "Source", "Score", "Title"],
-            tablefmt="github",
-            colalign=("left", "center", "center", "right", "left"),
-        )
-    )
+    print(tabulate(
+        rows,
+        headers=["BibKey", "Status", "Source", "Score", "Title"],
+        tablefmt="github",
+        colalign=("left", "center", "center", "right", "left"),
+    ))
 
 
 if __name__ == "__main__":
