@@ -70,7 +70,7 @@ def query_crossref(title: str):
 # ----------------------------- ARXIV ----------------------------------------
 
 def query_arxiv(title: str):
-    \"\"\"Return best‑matching arXiv entry (feedparser entry) and similarity score.\"\"\"
+    """Return best‑matching arXiv entry (feedparser entry) and similarity score."""
     import feedparser
 
     search = f'ti:\"{title}\"'
