@@ -46,7 +46,7 @@ def similarity(a: str, b: str) -> float:
 
 
 def query_crossref(title: str):
-    \"\"\"Return best‑matching Crossref record (dict) and similarity score.\"\"\"
+    """Return best‑matching Crossref record (dict) and similarity score."""
     try:
         resp = requests.get(
             "https://api.crossref.org/works",
