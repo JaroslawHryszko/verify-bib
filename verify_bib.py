@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-\"\"\"verify_bib.py  —  Quick validity checker for BibTeX references.
+"""verify_bib.py – Quick validity checker for BibTeX references.
+
 
 For each entry in the given .bib file it tries to find a close‑enough match
 in Crossref (journal & conference papers) and, if not found there, in arXiv.
@@ -14,7 +15,7 @@ Dependencies (install via pip):
     requests
     feedparser
     tabulate
-\"\"\"
+"""
 
 import argparse
 import difflib
